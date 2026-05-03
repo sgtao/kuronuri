@@ -1,0 +1,37 @@
+[tasks.fix]
+description = "Format, fix, and check the entire codebase."
+run = [
+  "uv run ruff check --fix",
+  "uv run ruff format",
+  "uv run ty check",
+]
+
+[tasks.playground]
+description = "Run playground.py"
+quiet = true
+run = [
+  "uv run playground.py",
+]
+
+[tasks.test]
+description = "Run the test suite with pytest."
+run = [
+  "uv run pytest",
+]
+
+[tasks.test-all]
+description = "Run the test suite across Python 3.10–3.14."
+run = [
+  "uv run --python 3.10 pytest --run-model",
+  "uv run --python 3.11 pytest --run-model",
+  "uv run --python 3.12 pytest --run-model",
+  "uv run --python 3.13 pytest --run-model",
+  "uv run --python 3.14 pytest --run-model",
+]
+
+[tasks.update-dependencies]
+description = "Update dependencies."
+run = [
+  "uv sync --upgrade",
+  "git status",
+]

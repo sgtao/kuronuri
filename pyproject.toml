@@ -1,0 +1,94 @@
+[build-system]
+build-backend = "uv_build"
+requires = ["uv_build<1.0.0"]
+
+[dependency-groups]
+dev = [
+  "pytest>=9.0.3",
+  "pytest-cov>=7.1.0",
+  "ruff>=0.15.12",
+  "ty>=0.0.33",
+]
+
+[project]
+authors = [
+  {name = "Shinsuke Mori", email = "sincekmori@gmail.com"},
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Text Processing :: Linguistic",
+]
+dependencies = [
+  "torch>=2.11.0",
+  "transformers>=5.7.0",
+  "typer>=0.25.1",
+]
+description = "A Python library for masking personal information in text using Named Entity Recognition models."
+keywords = ["nlp", "ner", "pii", "masking", "anonymization"]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+name = "kuronuri"
+readme = "README.md"
+requires-python = ">=3.10"
+version = "0.1.0"
+
+[project.scripts]
+kuronuri = "kuronuri._cli:app"
+
+[project.urls]
+Homepage = "https://github.com/sincekmori/kuronuri"
+Issues = "https://github.com/sincekmori/kuronuri/issues"
+Repository = "https://github.com/sincekmori/kuronuri"
+
+[tool.pytest.ini_options]
+addopts = "--cov=kuronuri --cov-report=term-missing --cov-report=xml"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.format]
+docstring-code-format = true
+line-ending = "lf"
+skip-magic-trailing-comma = true
+
+[tool.ruff.lint]
+ignore = ["COM812"]
+select = ["ALL"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["kuronuri"]
+split-on-trailing-comma = false
+
+[tool.ruff.lint.mccabe]
+max-complexity = 5
+
+[tool.ruff.lint.per-file-ignores]
+"playground.py" = ["D", "FIX", "RUF001", "RUF003", "S101", "S106", "T201", "TD"]
+"src/kuronuri/_cli.py" = ["PLR0913"]
+"tests/**" = ["D", "S101"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[[tool.uv.index]]
+explicit = true
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+
+[tool.uv.sources]
+torch = {index = "pytorch-cpu"}

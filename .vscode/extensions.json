@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "astral-sh.ty",
+    "be5invis.toml",
+    "charliermarsh.ruff",
+    "ms-python.python",
+    "njpwerner.autodocstring",
+    "esbenp.prettier-vscode",
+    "redhat.vscode-yaml"
+  ]
+}
