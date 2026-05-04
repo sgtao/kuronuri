@@ -6,6 +6,7 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/kuronuri.svg)](https://pypi.org/project/kuronuri/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/sincekmori/kuronuri/actions/workflows/ci.yml/badge.svg)](https://github.com/sincekmori/kuronuri/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sincekmori/kuronuri/branch/main/graph/badge.svg)](https://codecov.io/gh/sincekmori/kuronuri)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty)

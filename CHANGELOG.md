@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-05-04
+
+### Changed
+
+- **Breaking:** `MaskStrategy` signature changed from `(entity: dict) -> str` to `(entity: dict, tag_labels: dict[str, str]) -> str`. Custom strategy functions must be updated to accept the new second argument.
+- `NERModel` is now hashable (`unsafe_hash=True`), enabling safe use with `functools.lru_cache`. Hash and equality are determined by `model_name` and `aggregation_strategy`; `tag_labels` is excluded from both.
+- Pipeline caching switched from a manual `dict` to `@lru_cache`, keyed on the full `NERModel` identity (including `aggregation_strategy`).
+- BOM detection in the CLI now returns the BOM bytes directly instead of a `bool` flag, simplifying the read/write path.
+- Logo update for improved legibility.
+
 ## [0.1.0] - 2026-05-03
 
 ### Added
