@@ -137,7 +137,7 @@ mask("Hello, I'm Shinsuke Mori. My email address is sincekmori@gmail.com.", stra
 mask("Hello, I'm Shinsuke Mori. My email address is sincekmori@gmail.com.", strategy=mask_with_fixed(char="*", length=5))
 # → "Hello, I'm*****. My email address is*****."
 
-mask("Hello, I'm Shinsuke Mori. My email address is sincekmori@gmail.com.", strategy=lambda e: f"[{e['entity_group']}]")
+mask("Hello, I'm Shinsuke Mori. My email address is sincekmori@gmail.com.", strategy=lambda e, _labels: f"[{e['entity_group']}]")
 # → "Hello, I'm[private_person][private_person]. My email address is[private_email][private_email]."
 ```
 
@@ -234,12 +234,12 @@ The CLI preserves the original file encoding (including BOM) and line endings.
 
 ### `mask(text, *, model, mask_tags, strategy) -> str`
 
-| Parameter   | Type                    | Default           | Description                                          |
-| ----------- | ----------------------- | ----------------- | ---------------------------------------------------- |
-| `text`      | `str`                   | —                 | Input string                                         |
-| `model`     | `NERModel`              | `EN_MODEL`        | NER model to use                                     |
-| `mask_tags` | `set[str] \| None`      | `None`            | Tags to mask. `None` uses `model.default_mask_tags`. |
-| `strategy`  | `Callable[[dict], str]` | `mask_with_block` | Masking strategy                                     |
+| Parameter   | Type                                    | Default           | Description                                          |
+| ----------- | --------------------------------------- | ----------------- | ---------------------------------------------------- |
+| `text`      | `str`                                   | —                 | Input string                                         |
+| `model`     | `NERModel`                              | `EN_MODEL`        | NER model to use                                     |
+| `mask_tags` | `set[str] \| None`                      | `None`            | Tags to mask. `None` uses `model.default_mask_tags`. |
+| `strategy`  | `Callable[[dict, dict[str, str]], str]` | `mask_with_block` | Masking strategy                                     |
 
 ### `NERModel`
 

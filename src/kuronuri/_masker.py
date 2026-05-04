@@ -11,24 +11,19 @@ from transformers.utils import logging as hf_logging
 hf_logging.disable_progress_bar()
 
 #: Type alias for a masking strategy function.
-MaskStrategy = Callable[[dict[str, Any]], str]
+#: Receives the raw entity dict and the model's tag-label mapping.
+MaskStrategy = Callable[[dict[str, Any], dict[str, str]], str]
 
 
-def mask_with_block(entity: dict[str, Any]) -> str:
+def mask_with_block(entity: dict[str, Any], tag_labels: dict[str, str]) -> str:  # noqa: ARG001
     """Replace the entity span with █ characters matching its character length."""
     return "█" * (entity["end"] - entity["start"])
 
 
-def mask_with_label(entity: dict[str, Any]) -> str:
-    """Replace the entity with a human-readable label, e.g. ``<Person>``.
-
-    The label is looked up from the entity's ``tag_labels`` key if present
-    (injected by :func:`mask`), otherwise the raw ``entity_group`` value is
-    wrapped in angle brackets.
-    """
+def mask_with_label(entity: dict[str, Any], tag_labels: dict[str, str]) -> str:
+    """Replace the entity with a human-readable label, e.g. ``<Person>``."""
     tag = entity["entity_group"]
-    label = entity.get("tag_labels", {}).get(tag, tag)
-    return f"<{label}>"
+    return f"<{tag_labels.get(tag, tag)}>"
 
 
 def mask_with_fixed(char: str = "*", length: int = 3) -> MaskStrategy:
@@ -44,12 +39,12 @@ def mask_with_fixed(char: str = "*", length: int = 3) -> MaskStrategy:
     Examples:
     --------
     >>> strategy = mask_with_fixed(char="*", length=5)
-    >>> strategy({"entity_group": "PER", "start": 0, "end": 3, "word": "森信輔"})
+    >>> strategy({"entity_group": "PER", "start": 0, "end": 3, "word": "森信輔"}, {})
     '*****'
     """
     replacement = char * length
 
-    def _strategy(entity: dict[str, Any]) -> str:  # noqa: ARG001
+    def _strategy(entity: dict[str, Any], tag_labels: dict[str, str]) -> str:  # noqa: ARG001
         return replacement
 
     return _strategy
@@ -165,8 +160,9 @@ def mask(
         Set of entity tag strings to redact.  ``None`` (default) uses
         ``model.default_mask_tags``.
     strategy:
-        A callable ``(entity: dict) -> str`` that returns the replacement
-        string for each detected entity.  Built-in options:
+        A callable ``(entity: dict, tag_labels: dict[str, str]) -> str`` that
+        returns the replacement string for each detected entity.
+        Built-in options:
 
         - :func:`mask_with_block` *(default)* — fills with ``█`` characters
         - :func:`mask_with_label` — replaces with a human-readable label
@@ -209,7 +205,7 @@ def mask(
     pipe = _get_pipeline(model)
     entities: list[dict[str, Any]] = pipe(text)
 
-    # Filter to target tags, then sort descending so end-of-string splices
+    # Filter to target tags, then sort descending so later splices
     # don't invalidate earlier offsets.
     entities_to_mask = sorted(
         (e for e in entities if e["entity_group"] in tags),
@@ -219,11 +215,10 @@ def mask(
 
     result = text
     for entity in entities_to_mask:
-        # Inject tag_labels so mask_with_label can resolve names without
-        # needing a direct reference to the NERModel instance.
-        enriched = {**entity, "tag_labels": model.tag_labels}
         result = (
-            result[: entity["start"]] + strategy(enriched) + result[entity["end"] :]
+            result[: entity["start"]]
+            + strategy(entity, model.tag_labels)
+            + result[entity["end"] :]
         )
 
     return result

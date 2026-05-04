@@ -119,7 +119,7 @@ class TestInlineMode:
         with patch("kuronuri._cli.mask", side_effect=_capture):
             runner.invoke(app, ["--strategy", "fixed", "test"])
         entity = {"entity_group": "PER", "start": 0, "end": 2, "word": "AB"}
-        assert captured["strategy"](entity) == "***"
+        assert captured["strategy"](entity, {}) == "***"
 
     def test_custom_tags_passed_as_mask_tags(self) -> None:
         captured: dict = {}

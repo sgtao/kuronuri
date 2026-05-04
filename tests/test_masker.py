@@ -17,53 +17,41 @@ from kuronuri._masker import _get_pipeline
 class TestMaskWithBlock:
     def test_fills_with_full_width_squares(self) -> None:
         entity = {"entity_group": "PER", "start": 0, "end": 2, "word": "鈴木"}
-        assert mask_with_block(entity) == "██"
+        assert mask_with_block(entity, {}) == "██"
 
     def test_length_matches_span(self) -> None:
         entity = {"entity_group": "ORG", "start": 3, "end": 6, "word": "ABC"}
-        assert mask_with_block(entity) == "███"
+        assert mask_with_block(entity, {}) == "███"
 
     def test_zero_length(self) -> None:
         entity = {"entity_group": "PER", "start": 5, "end": 5, "word": ""}
-        assert mask_with_block(entity) == ""
+        assert mask_with_block(entity, {}) == ""
 
 
 class TestMaskWithLabel:
     def test_resolves_from_tag_labels(self) -> None:
-        entity = {
-            "entity_group": "PER",
-            "start": 0,
-            "end": 2,
-            "word": "鈴木",
-            "tag_labels": {"PER": "Person"},
-        }
-        assert mask_with_label(entity) == "<Person>"
-
-    def test_falls_back_to_raw_tag_when_no_tag_labels(self) -> None:
         entity = {"entity_group": "PER", "start": 0, "end": 2, "word": "鈴木"}
-        assert mask_with_label(entity) == "<PER>"
+        assert mask_with_label(entity, {"PER": "Person"}) == "<Person>"
+
+    def test_falls_back_to_raw_tag_when_empty(self) -> None:
+        entity = {"entity_group": "PER", "start": 0, "end": 2, "word": "鈴木"}
+        assert mask_with_label(entity, {}) == "<PER>"
 
     def test_falls_back_to_raw_tag_when_key_missing(self) -> None:
-        entity = {
-            "entity_group": "CUSTOM",
-            "start": 0,
-            "end": 2,
-            "word": "XX",
-            "tag_labels": {"PER": "Person"},
-        }
-        assert mask_with_label(entity) == "<CUSTOM>"
+        entity = {"entity_group": "CUSTOM", "start": 0, "end": 2, "word": "XX"}
+        assert mask_with_label(entity, {"PER": "Person"}) == "<CUSTOM>"
 
 
 class TestMaskWithFixed:
     def test_default_char_and_length(self) -> None:
         strategy = mask_with_fixed()
         entity = {"entity_group": "PER", "start": 0, "end": 10, "word": "something"}
-        assert strategy(entity) == "***"
+        assert strategy(entity, {}) == "***"
 
     def test_custom_char_and_length(self) -> None:
         strategy = mask_with_fixed(char="X", length=5)
         entity = {"entity_group": "PER", "start": 0, "end": 2, "word": "鈴木"}
-        assert strategy(entity) == "XXXXX"
+        assert strategy(entity, {}) == "XXXXX"
 
     def test_returns_callable(self) -> None:
         assert callable(mask_with_fixed())
@@ -205,7 +193,6 @@ class TestMask:
             )
 
     def test_en_model_masks_all_tags_by_default(self) -> None:
-        # secret is now in EN_MODEL.default_mask_tags
         entities = [
             {"entity_group": "secret", "start": 5, "end": 13, "word": "sk-abc123"}
         ]
@@ -229,14 +216,12 @@ class TestMask:
     def test_mask_tags_overrides_model_default(self) -> None:
         entities = [{"entity_group": "PER", "start": 0, "end": 2, "word": "鈴木"}]
         with self._patch(entities):
-            # Only mask LOC, not PER
             result = mask("鈴木さん", model=JA_MODEL, mask_tags={"LOC"})
             assert "鈴木" in result
 
     def test_mask_tags_none_uses_model_default(self) -> None:
         entities = [{"entity_group": "PRD", "start": 0, "end": 5, "word": "Tokio"}]
         with self._patch(entities):
-            # PRD not in JA_MODEL.default_mask_tags
             result = mask("Tokio is great", model=JA_MODEL, mask_tags=None)
             assert "Tokio" in result
 
@@ -257,6 +242,20 @@ class TestMask:
         ) as mock_get:
             mask("テスト", model=custom)
             mock_get.assert_called_once_with(custom)
+
+    def test_tag_labels_passed_to_strategy(self) -> None:
+        """strategy receives model.tag_labels, not an enriched entity dict."""
+        entities = [{"entity_group": "PER", "start": 0, "end": 2, "word": "鈴木"}]
+        received: dict = {}
+
+        def _capture(_entity: dict, tag_labels: dict) -> str:
+            received["tag_labels"] = tag_labels
+            return "X"
+
+        with self._patch(entities):
+            mask("鈴木さん", model=JA_MODEL, strategy=_capture)
+
+        assert received["tag_labels"] is JA_MODEL.tag_labels
 
 
 class TestPipelineCache:
