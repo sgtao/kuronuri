@@ -24,35 +24,36 @@ app = typer.Typer(help="Mask PII in text files.")
 
 _NEWLINE_RE = re.compile(r"\r\n|\r|\n")
 
-_BOM_MAP: dict[str, bytes] = {
-    "utf-8-sig": codecs.BOM_UTF8,
-    "utf-16-le": codecs.BOM_UTF16_LE,
-    "utf-16-be": codecs.BOM_UTF16_BE,
-    "utf-32-le": codecs.BOM_UTF32_LE,
-    "utf-32-be": codecs.BOM_UTF32_BE,
-}
+# Ordered from longest to shortest BOM so prefix matching is unambiguous.
+_BOM_ENCODINGS: list[tuple[bytes, str]] = [
+    (codecs.BOM_UTF32_LE, "utf-32-le"),
+    (codecs.BOM_UTF32_BE, "utf-32-be"),
+    (codecs.BOM_UTF16_LE, "utf-16-le"),
+    (codecs.BOM_UTF16_BE, "utf-16-be"),
+    (codecs.BOM_UTF8, "utf-8-sig"),
+]
 
 _BUILTIN_MODELS: dict[str, NERModel] = {"en": EN_MODEL, "ja": JA_MODEL}
 
 
-def _detect_encoding_and_bom(raw: bytes) -> tuple[str, bool]:
-    """Return ``(encoding, has_bom)`` by inspecting the raw bytes."""
-    for bom, enc in [
-        (codecs.BOM_UTF32_LE, "utf-32-le"),
-        (codecs.BOM_UTF32_BE, "utf-32-be"),
-        (codecs.BOM_UTF16_LE, "utf-16-le"),
-        (codecs.BOM_UTF16_BE, "utf-16-be"),
-        (codecs.BOM_UTF8, "utf-8-sig"),
-    ]:
+def _detect_encoding_and_bom(raw: bytes) -> tuple[str, bytes]:
+    """Return ``(encoding, bom_bytes)`` by inspecting the raw bytes.
+
+    *bom_bytes* is the raw BOM prefix that should be re-prepended on write,
+    or ``b""`` if no BOM was found.  For ``utf-8-sig`` the Python codec strips
+    the BOM automatically, so ``bom_bytes`` is left empty for that encoding.
+    """
+    for bom, enc in _BOM_ENCODINGS:
         if raw.startswith(bom):
-            return enc, True
+            # utf-8-sig: Python's codec handles the BOM transparently.
+            return enc, (b"" if enc == "utf-8-sig" else bom)
 
     try:
         raw.decode("utf-8")
     except UnicodeDecodeError:
-        return sys.getdefaultencoding(), False
+        return sys.getdefaultencoding(), b""
     else:
-        return "utf-8", False
+        return "utf-8", b""
 
 
 def _detect_newline(text: str) -> str:
@@ -67,14 +68,16 @@ def _normalize_newlines(text: str, newline: str) -> str:
 
 
 def _resolve_strategy(strategy_name: str, char: str, length: int) -> MaskStrategy:
-    if strategy_name == "label":
-        return mask_with_label
-    if strategy_name == "block":
-        return mask_with_block
-    if strategy_name == "fixed":
-        return mask_with_fixed(char=char, length=length)
-    msg = f"Unknown strategy: {strategy_name!r}"
-    raise typer.BadParameter(msg)
+    match strategy_name:
+        case "label":
+            return mask_with_label
+        case "block":
+            return mask_with_block
+        case "fixed":
+            return mask_with_fixed(char=char, length=length)
+        case _:
+            msg = f"Unknown strategy: {strategy_name!r}"
+            raise typer.BadParameter(msg)
 
 
 def _resolve_model(lang: str | None, model_name: str | None) -> NERModel:
@@ -101,7 +104,7 @@ def _version_callback(value: bool) -> None:  # noqa: FBT001
 
 def _read_text(input_path: Path) -> tuple[str, str, bytes]:
     raw = input_path.read_bytes()
-    encoding, has_bom = _detect_encoding_and_bom(raw)
+    encoding, bom_bytes = _detect_encoding_and_bom(raw)
 
     try:
         text = raw.decode(encoding)
@@ -110,9 +113,7 @@ def _read_text(input_path: Path) -> tuple[str, str, bytes]:
         typer.echo(msg, err=True)
         raise typer.Exit(code=1) from exc
 
-    bom_bytes = b""
-    if has_bom and encoding != "utf-8-sig":
-        bom_bytes = _BOM_MAP.get(encoding, b"")
+    if bom_bytes:
         bom_str = bom_bytes.decode(encoding, errors="ignore")
         text = text.removeprefix(bom_str)
 
@@ -122,9 +123,7 @@ def _read_text(input_path: Path) -> tuple[str, str, bytes]:
 def _write_text(
     masked: str, encoding: str, bom_bytes: bytes, output_file: Path | None
 ) -> None:
-    result_bytes = masked.encode(encoding)
-    if bom_bytes:
-        result_bytes = bom_bytes + result_bytes
+    result_bytes = bom_bytes + masked.encode(encoding)
 
     if output_file is None:
         sys.stdout.buffer.write(result_bytes)
@@ -140,11 +139,10 @@ def _process_file(
     mask_strategy: MaskStrategy,
 ) -> None:
     text, encoding, bom_bytes = _read_text(input_path)
-
     newline = _detect_newline(text)
-    masked = mask(text, model=ner_model, mask_tags=tags, strategy=mask_strategy)
-    masked = _normalize_newlines(masked, newline)
-
+    masked = _normalize_newlines(
+        mask(text, model=ner_model, mask_tags=tags, strategy=mask_strategy), newline
+    )
     _write_text(masked, encoding, bom_bytes, output_file)
 
 
@@ -227,9 +225,9 @@ def main(
     mask_strategy = _resolve_strategy(strategy, fixed_char, fixed_length)
 
     input_path = Path(input_)
-
     if input_path.exists():
         _process_file(input_path, output_file, ner_model, tags, mask_strategy)
     else:
-        masked = mask(input_, model=ner_model, mask_tags=tags, strategy=mask_strategy)
-        typer.echo(masked)
+        typer.echo(
+            mask(input_, model=ner_model, mask_tags=tags, strategy=mask_strategy)
+        )

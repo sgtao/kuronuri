@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import cache
 from typing import Any
 
 from transformers import pipeline as hf_pipeline  # type: ignore[import-untyped]
@@ -25,9 +26,8 @@ def mask_with_label(entity: dict[str, Any]) -> str:
     (injected by :func:`mask`), otherwise the raw ``entity_group`` value is
     wrapped in angle brackets.
     """
-    label = entity.get("tag_labels", {}).get(
-        entity["entity_group"], entity["entity_group"]
-    )
+    tag = entity["entity_group"]
+    label = entity.get("tag_labels", {}).get(tag, tag)
     return f"<{label}>"
 
 
@@ -47,14 +47,15 @@ def mask_with_fixed(char: str = "*", length: int = 3) -> MaskStrategy:
     >>> strategy({"entity_group": "PER", "start": 0, "end": 3, "word": "森信輔"})
     '*****'
     """
+    replacement = char * length
 
     def _strategy(entity: dict[str, Any]) -> str:  # noqa: ARG001
-        return char * length
+        return replacement
 
     return _strategy
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class NERModel:
     """A token-classification model together with its tag vocabulary.
 
@@ -71,6 +72,11 @@ class NERModel:
     aggregation_strategy:
         Pipeline aggregation strategy (default: ``"simple"``).
 
+    Note:
+        Hash and equality are determined by ``model_name`` and
+        ``aggregation_strategy`` only, so ``tag_labels`` does not affect
+        pipeline caching.
+
     Examples:
     --------
     >>> model = NERModel(
@@ -82,7 +88,7 @@ class NERModel:
 
     model_name: str
     default_mask_tags: frozenset[str]
-    tag_labels: dict[str, str] = field(default_factory=dict)
+    tag_labels: dict[str, str] = field(default_factory=dict, hash=False, compare=False)
     aggregation_strategy: str = "simple"
 
 
@@ -129,18 +135,13 @@ JA_MODEL: NERModel = NERModel(
 )
 
 
-_pipeline_cache: dict[str, Any] = {}
-
-
+@cache
 def _get_pipeline(model: NERModel) -> Any:  # noqa: ANN401
-    key = model.model_name
-    if key not in _pipeline_cache:
-        _pipeline_cache[key] = hf_pipeline(
-            "token-classification",
-            model=model.model_name,
-            aggregation_strategy=model.aggregation_strategy,
-        )
-    return _pipeline_cache[key]
+    return hf_pipeline(
+        "token-classification",
+        model=model.model_name,
+        aggregation_strategy=model.aggregation_strategy,
+    )
 
 
 def mask(
@@ -208,9 +209,13 @@ def mask(
     pipe = _get_pipeline(model)
     entities: list[dict[str, Any]] = pipe(text)
 
-    entities_to_mask = [e for e in entities if e["entity_group"] in tags]
-    # Sort descending by start so splicing from the end keeps earlier offsets valid.
-    entities_to_mask.sort(key=lambda e: e["start"], reverse=True)
+    # Filter to target tags, then sort descending so end-of-string splices
+    # don't invalidate earlier offsets.
+    entities_to_mask = sorted(
+        (e for e in entities if e["entity_group"] in tags),
+        key=lambda e: e["start"],
+        reverse=True,
+    )
 
     result = text
     for entity in entities_to_mask:

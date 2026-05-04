@@ -11,7 +11,7 @@ from kuronuri import (
     mask_with_fixed,
     mask_with_label,
 )
-from kuronuri._masker import _get_pipeline, _pipeline_cache
+from kuronuri._masker import _get_pipeline
 
 
 class TestMaskWithBlock:
@@ -129,6 +129,30 @@ class TestNERModel:
         assert not hasattr(kuronuri, "resolve_lang")
         assert not hasattr(kuronuri, "DEFAULT_LANG")
 
+    def test_is_hashable(self) -> None:
+        model = NERModel(model_name="x/y", default_mask_tags=frozenset())
+        assert isinstance(hash(model), int)
+
+    def test_tag_labels_excluded_from_equality(self) -> None:
+        a = NERModel(
+            model_name="x/y", default_mask_tags=frozenset(), tag_labels={"A": "B"}
+        )
+        b = NERModel(model_name="x/y", default_mask_tags=frozenset(), tag_labels={})
+        assert a == b
+
+    def test_aggregation_strategy_included_in_equality(self) -> None:
+        a = NERModel(
+            model_name="x/y",
+            default_mask_tags=frozenset(),
+            aggregation_strategy="simple",
+        )
+        b = NERModel(
+            model_name="x/y",
+            default_mask_tags=frozenset(),
+            aggregation_strategy="first",
+        )
+        assert a != b
+
 
 def _make_pipe(entities: list[dict]) -> MagicMock:
     return MagicMock(return_value=entities)
@@ -237,7 +261,7 @@ class TestMask:
 
 class TestPipelineCache:
     def test_same_model_cached(self) -> None:
-        _pipeline_cache.clear()
+        _get_pipeline.cache_clear()
         model = NERModel(model_name="model-a", default_mask_tags=frozenset())
         with patch("kuronuri._masker.hf_pipeline") as mock_hf:
             mock_hf.return_value = MagicMock(return_value=[])
@@ -245,8 +269,8 @@ class TestPipelineCache:
             _get_pipeline(model)
             assert mock_hf.call_count == 1
 
-    def test_different_models_separate_cache(self) -> None:
-        _pipeline_cache.clear()
+    def test_different_model_names_use_separate_cache_entries(self) -> None:
+        _get_pipeline.cache_clear()
         model_a = NERModel(model_name="model-a", default_mask_tags=frozenset())
         model_b = NERModel(model_name="model-b", default_mask_tags=frozenset())
         with patch("kuronuri._masker.hf_pipeline") as mock_hf:
@@ -255,8 +279,8 @@ class TestPipelineCache:
             _get_pipeline(model_b)
             assert mock_hf.call_count == 2  # noqa: PLR2004
 
-    def test_same_model_name_shares_cache(self) -> None:
-        _pipeline_cache.clear()
+    def test_different_aggregation_strategies_use_separate_cache_entries(self) -> None:
+        _get_pipeline.cache_clear()
         model_a = NERModel(
             model_name="model-x",
             default_mask_tags=frozenset(),
@@ -271,4 +295,4 @@ class TestPipelineCache:
             mock_hf.return_value = MagicMock(return_value=[])
             _get_pipeline(model_a)
             _get_pipeline(model_b)
-            assert mock_hf.call_count == 1
+            assert mock_hf.call_count == 2  # noqa: PLR2004
