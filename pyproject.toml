@@ -80,8 +80,9 @@ max-complexity = 5
 
 [tool.ruff.lint.per-file-ignores]
 "playground.py" = ["D", "FIX", "RUF001", "RUF003", "S101", "S106", "T201", "TD"]
-"src/kuronuri/_cli.py" = ["PLR0913"]
-"tests/**" = ["D", "S101"]
+"src/kuronuri/_cli.py" = ["FBT002", "PLR0913"]
+"src/kuronuri/_mcp.py" = ["PLR0913"]
+"tests/**" = ["ANN201", "ARG002", "D", "S101"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
