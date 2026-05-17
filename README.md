@@ -185,12 +185,12 @@ mask("こんにちは、森信輔です。私のメールアドレスは sincekm
 
 ## CLI
 
-kuronuri provides two subcommands: `mask` for PII redaction and `serve` for the MCP server.
+kuronuri provides two subcommands: INPUT for PII redaction and `serve` for the MCP server.
 
-### `kuronuri mask`
+### `kuronuri INPUT`
 
 ```
-Usage: kuronuri mask [OPTIONS] INPUT
+Usage: kuronuri [OPTIONS] INPUT
 
   Mask PII in a text file or an inline string.
 
@@ -215,24 +215,23 @@ Options:
 **Examples:**
 
 ```bash
-# Inline string — the 'mask' subcommand can be omitted for convenience
+# Inline string (default: English)
 kuronuri "Hello, I'm Shinsuke Mori. My email address is sincekmori@gmail.com."
-kuronuri mask "Hello, I'm Shinsuke Mori. My email address is sincekmori@gmail.com."
 
 # Japanese text
-kuronuri mask --lang ja "こんにちは、森信輔です。私のメールアドレスは sincekmori@gmail.com です。"
+kuronuri --lang ja "こんにちは、森信輔です。私のメールアドレスは sincekmori@gmail.com です。"
 
 # File → stdout with label strategy
-kuronuri mask --strategy label report.txt
+kuronuri --strategy label report.txt
 
 # File → output file
-kuronuri mask input.txt -o output.txt
+kuronuri input.txt -o output.txt
 
 # Custom model
-kuronuri mask --model my-org/my-ner-model input.txt
+kuronuri --model my-org/my-ner-model input.txt
 
 # Show version
-kuronuri mask --version
+kuronuri --version
 ```
 
 The CLI preserves the original file encoding (including BOM) and line endings.
