@@ -22,6 +22,11 @@ class TestVersion:
         assert result.exit_code == 0
         assert "kuronuri" in result.output
 
+    def test_help_shows_serve_command(self) -> None:
+        result = runner.invoke(app, ["--help"])
+        assert result.exit_code == 0
+        assert "serve" in result.output
+
 
 class TestInlineMode:
     def test_inline_text_masked(self) -> None:
@@ -206,3 +211,16 @@ class TestInvalidStrategy:
     def test_unknown_strategy_raises(self) -> None:
         result = runner.invoke(app, ["--strategy", "nonexistent", "test"])
         assert result.exit_code != 0
+
+
+class TestServeCommand:
+    def test_serve_mcp_starts_server(self) -> None:
+        with patch("kuronuri._mcp.mcp") as mock_mcp:
+            result = runner.invoke(app, ["serve", "--mcp"])
+        assert result.exit_code == 0
+        mock_mcp.run.assert_called_once_with(transport="stdio")
+
+    def test_serve_without_mcp_flag_exits_with_error(self) -> None:
+        result = runner.invoke(app, ["serve"])
+        assert result.exit_code != 0
+        assert "mcp" in result.output.lower() or "mcp" in (result.stderr or "").lower()
