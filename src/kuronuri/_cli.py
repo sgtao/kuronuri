@@ -24,10 +24,10 @@ from kuronuri._masker import (
 
 
 class _DefaultMaskGroup(TyperGroup):
-    """Command group that defaults to 'mask' for bare positional arguments.
+    """Routes bare arguments to the default masking command.
 
-    This lets ``kuronuri <INPUT>`` work without an explicit ``mask`` sub-command
-    while still allowing named sub-commands such as ``kuronuri serve --mcp``.
+    Allows ``kuronuri <INPUT>`` and ``kuronuri serve --mcp`` to coexist:
+    unrecognised arguments are forwarded to ``main`` as if typed explicitly.
     """
 
     _HELP_FLAGS: frozenset[str] = frozenset({"--help", "-h"})
@@ -39,7 +39,7 @@ class _DefaultMaskGroup(TyperGroup):
             if arg.startswith("-"):
                 continue
             if arg not in self.commands:
-                args.insert(0, "mask")
+                args.insert(0, "main")
             break
         return super().parse_args(ctx, args)
 
@@ -170,7 +170,7 @@ def _process_file(
     _write_text(masked, encoding, bom_bytes, output_file)
 
 
-@app.command("mask")
+@app.command()
 def main(
     input_: Annotated[
         str,
