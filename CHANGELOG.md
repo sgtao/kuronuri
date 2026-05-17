@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-05-17
+
+### Added
+
+- **MCP server** (`kuronuri serve --mcp`): starts a [Model Context Protocol](https://modelcontextprotocol.io/) server over stdio, exposing PII masking as tools to Claude Code, Claude Desktop, and other MCP clients.
+  - `mask_text` tool: masks PII in text with full control over language, strategy, and target tags.
+  - `list_ner_tags` tool: returns a Markdown table of NER tags and their default mask status for a given language.
+- `src/kuronuri/_mcp.py`: internal MCP server module built with [FastMCP](https://gofastmcp.com/).
+- `kuronuri serve --mcp` subcommand in the CLI. The existing `kuronuri <INPUT>` interface is preserved via a default-command routing group.
+
 ## [0.2.0] - 2026-05-04
 
 ### Changed

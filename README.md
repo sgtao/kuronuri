@@ -33,6 +33,7 @@ kuronuri never logs, stores, or transmits the text you process.
 - 🌐 Built-in models for English (`EN_MODEL`) and Japanese (`JA_MODEL`); any language is supported via any Hugging Face `token-classification` model
 - ✏️ Three masking strategies — block fill, human-readable labels, or fixed string
 - 🖥️ CLI included — mask files or inline strings from the terminal
+- 🤖 MCP server included — expose PII masking as tools to Claude and other MCP clients
 - 🐍 Requires Python 3.10 or later
 
 ## Installation
@@ -184,8 +185,12 @@ mask("こんにちは、森信輔です。私のメールアドレスは sincekm
 
 ## CLI
 
+kuronuri provides two subcommands: `mask` for PII redaction and `serve` for the MCP server.
+
+### `kuronuri mask`
+
 ```
-Usage: kuronuri [OPTIONS] INPUT
+Usage: kuronuri mask [OPTIONS] INPUT
 
   Mask PII in a text file or an inline string.
 
@@ -210,26 +215,92 @@ Options:
 **Examples:**
 
 ```bash
-# Inline string (default: English)
+# Inline string — the 'mask' subcommand can be omitted for convenience
 kuronuri "Hello, I'm Shinsuke Mori. My email address is sincekmori@gmail.com."
+kuronuri mask "Hello, I'm Shinsuke Mori. My email address is sincekmori@gmail.com."
 
 # Japanese text
-kuronuri --lang ja "こんにちは、森信輔です。私のメールアドレスは sincekmori@gmail.com です。"
+kuronuri mask --lang ja "こんにちは、森信輔です。私のメールアドレスは sincekmori@gmail.com です。"
 
 # File → stdout with label strategy
-kuronuri --strategy label report.txt
+kuronuri mask --strategy label report.txt
 
 # File → output file
-kuronuri input.txt -o output.txt
+kuronuri mask input.txt -o output.txt
 
 # Custom model
-kuronuri --model my-org/my-ner-model input.txt
+kuronuri mask --model my-org/my-ner-model input.txt
 
 # Show version
-kuronuri --version
+kuronuri mask --version
 ```
 
 The CLI preserves the original file encoding (including BOM) and line endings.
+
+## MCP Server
+
+kuronuri includes a built-in [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that exposes PII masking as tools to Claude and other MCP clients.
+
+### Start the server
+
+```bash
+kuronuri serve --mcp
+```
+
+The server runs over stdio transport, ready to be registered with an MCP client.
+
+### Register with Claude Code
+
+Add the following to your Claude Code MCP configuration (`~/.claude/claude_code_config.json` or `.claude/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "kuronuri": {
+      "command": "kuronuri",
+      "args": ["serve", "--mcp"]
+    }
+  }
+}
+```
+
+### Register with Claude Desktop
+
+Add the following to your Claude Desktop configuration (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "kuronuri": {
+      "command": "kuronuri",
+      "args": ["serve", "--mcp"]
+    }
+  }
+}
+```
+
+### Available MCP tools
+
+#### `mask_text`
+
+Mask PII in the given text and return the result.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `text` | `str` | — | Input text to mask |
+| `lang` | `str` | `"en"` | Language code: `"en"` or `"ja"` |
+| `strategy` | `str` | `"block"` | Masking strategy: `"block"` / `"label"` / `"fixed"` |
+| `mask_tags` | `list[str] \| null` | `null` | NER tags to mask. `null` uses the model default |
+| `fixed_char` | `str` | `"█"` | Replacement character for the `"fixed"` strategy |
+| `fixed_length` | `int` | `3` | Number of replacement characters for the `"fixed"` strategy |
+
+#### `list_ner_tags`
+
+Return a Markdown table of NER tags and default mask targets for the given language.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `lang` | `str` | `"en"` | Language code: `"en"` or `"ja"` |
 
 ## API Reference
 
